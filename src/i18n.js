@@ -122,7 +122,7 @@ i18n
     resources,
     fallbackLng: "pt",
     detection: {
-      order: ["querystring", "navigator", "localStorage"],
+      order: ["querystring", "localStorage"],
       lookupQuerystring: "lang",
       caches: ["localStorage"],
     },
