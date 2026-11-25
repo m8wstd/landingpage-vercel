@@ -108,11 +108,16 @@ export async function saveProjects(projects) {
     // Persiste no Blob (visível para todos os visitantes)
     const password = getSessionPassword();
     if (password) {
-      await fetch('/api/data', {
+      const res = await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-admin-password': password },
         body: JSON.stringify({ projects }),
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error('Failed to save projects to Blob:', res.status, err);
+        return false;
+      }
     }
 
     return true;
@@ -229,11 +234,16 @@ export async function saveSiteConfig(newConfig) {
     // Persiste no Blob (visível para todos os visitantes)
     const password = getSessionPassword();
     if (password) {
-      await fetch('/api/data', {
+      const res = await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-admin-password': password },
         body: JSON.stringify({ siteConfig: newConfig }),
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error('Failed to save siteConfig to Blob:', res.status, err);
+        return false;
+      }
     }
 
     return true;

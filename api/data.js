@@ -1,4 +1,4 @@
-import { put, list } from '@vercel/blob';
+import { put, get } from '@vercel/blob';
 
 const DATA_PATH = 'portfolio/data.json';
 const ADMIN_PATH = 'portfolio/admin.json';
@@ -6,12 +6,14 @@ const ADMIN_PATH = 'portfolio/admin.json';
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async function readJson(pathname) {
-  const { blobs } = await list({ prefix: pathname });
-  const blob = blobs.find((b) => b.pathname === pathname);
-  if (!blob) return null;
-  const res = await fetch(blob.downloadUrl);
-  if (!res.ok) return null;
-  return res.json();
+  try {
+    const result = await get(pathname, { access: 'private' });
+    if (!result || result.statusCode !== 200) return null;
+    const text = await new Response(result.stream).text();
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 async function getAdminPassword() {
