@@ -7,6 +7,10 @@ import App from "./App.jsx";
 import BrainrotLeaguePage from "./BrainrotLeaguePage.jsx";
 import KolosClickerPage from "./KolosClickerPage.jsx";
 import SecretAdminPortal from "./admin/SecretAdminPortal.jsx";
+import { initializeFromBlob } from "./utils/projectStorage.js";
+
+// Carrega dados mais recentes do Vercel Blob antes de renderizar
+initializeFromBlob();
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>

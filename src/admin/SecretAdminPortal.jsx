@@ -2,15 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   verifyAdminPassword,
-  getAdminPassword,
   setAdminPassword,
   isAuthenticated,
   setAuthenticated,
   loadProjects,
   saveProjects,
   loadSiteConfig,
-  saveSiteConfig,
-  resetAllToDefaults
+  saveSiteConfig
 } from '../utils/projectStorage';
 
 export const SecretAdminPortal = () => {
@@ -73,11 +71,12 @@ export const SecretAdminPortal = () => {
     setTimeout(() => setSuccessMsg(''), 3500);
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setErrorMsg('');
-    if (verifyAdminPassword(passwordInput)) {
-      setAuthenticated(true);
+    const ok = await verifyAdminPassword(passwordInput);
+    if (ok) {
+      setAuthenticated(true, passwordInput);
       setAuthed(true);
       setProjects(loadProjects());
       setSiteConfig(loadSiteConfig());
@@ -93,14 +92,14 @@ export const SecretAdminPortal = () => {
   };
 
   // ─── SALVAR SOBRE ───────────────────────────────────────────────────────────
-  const handleSaveAbout = (e) => {
+  const handleSaveAbout = async (e) => {
     e.preventDefault();
-    saveSiteConfig(siteConfig);
+    await saveSiteConfig(siteConfig);
     showNotification(`Seção "Sobre" salva com sucesso (${editLang.toUpperCase()})!`);
   };
 
   // ─── SALVAR PROJETO ─────────────────────────────────────────────────────────
-  const handleSaveProject = (e) => {
+  const handleSaveProject = async (e) => {
     e.preventDefault();
     if (!projectForm.pt.title.trim() && !projectForm.en.title.trim()) {
       alert('Preencha ao menos o título do projeto.');
@@ -144,7 +143,7 @@ export const SecretAdminPortal = () => {
       updated = [newObj, ...projects];
     }
 
-    saveProjects(updated);
+    await saveProjects(updated);
     setProjects(updated);
     setEditingProjectId(null);
     setProjectForm({
@@ -185,16 +184,16 @@ export const SecretAdminPortal = () => {
     window.scrollTo({ top: 200, behavior: 'smooth' });
   };
 
-  const handleDeleteProject = (id) => {
+  const handleDeleteProject = async (id) => {
     if (window.confirm('Tem certeza de que deseja excluir este projeto?')) {
       const updated = projects.filter(p => p.id !== id);
-      saveProjects(updated);
+      await saveProjects(updated);
       setProjects(updated);
       showNotification('Projeto removido.');
     }
   };
 
-  const handleMoveProject = (index, direction) => {
+  const handleMoveProject = async (index, direction) => {
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= projects.length) return;
 
@@ -202,13 +201,13 @@ export const SecretAdminPortal = () => {
     const [movedItem] = updated.splice(index, 1);
     updated.splice(targetIndex, 0, movedItem);
 
-    saveProjects(updated);
+    await saveProjects(updated);
     setProjects(updated);
     showNotification('Ordem dos projetos atualizada!');
   };
 
   // ─── SALVAR EXPERIÊNCIA ─────────────────────────────────────────────────────
-  const handleSaveExp = (e) => {
+  const handleSaveExp = async (e) => {
     e.preventDefault();
     if (!expForm.pt.title.trim() && !expForm.en.title.trim()) {
       alert('Preencha ao menos o título do cargo/experiência.');
@@ -242,7 +241,7 @@ export const SecretAdminPortal = () => {
     }
 
     const newCfg = { ...siteConfig, experience: updatedExp };
-    saveSiteConfig(newCfg);
+    await saveSiteConfig(newCfg);
     setSiteConfig(newCfg);
     setEditingExpId(null);
     setExpForm({
@@ -276,17 +275,17 @@ export const SecretAdminPortal = () => {
     });
   };
 
-  const handleDeleteExp = (id) => {
+  const handleDeleteExp = async (id) => {
     if (window.confirm('Excluir este bloco de experiência?')) {
       const updated = siteConfig.experience.filter(e => e.id !== id);
       const newCfg = { ...siteConfig, experience: updated };
-      saveSiteConfig(newCfg);
+      await saveSiteConfig(newCfg);
       setSiteConfig(newCfg);
       showNotification('Experiência removida.');
     }
   };
 
-  const handleMoveExp = (index, direction) => {
+  const handleMoveExp = async (index, direction) => {
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= siteConfig.experience.length) return;
 
@@ -295,19 +294,19 @@ export const SecretAdminPortal = () => {
     updated.splice(targetIndex, 0, movedItem);
 
     const newCfg = { ...siteConfig, experience: updated };
-    saveSiteConfig(newCfg);
+    await saveSiteConfig(newCfg);
     setSiteConfig(newCfg);
     showNotification('Ordem das experiências atualizada!');
   };
 
   // ─── SALVAR CONTATO ─────────────────────────────────────────────────────────
-  const handleSaveContact = (e) => {
+  const handleSaveContact = async (e) => {
     e.preventDefault();
-    saveSiteConfig(siteConfig);
+    await saveSiteConfig(siteConfig);
     showNotification('Configurações de Contato salvas com sucesso!');
   };
 
-  const handleAddCustomBtn = (e) => {
+  const handleAddCustomBtn = async (e) => {
     e.preventDefault();
     if (!btnForm.label.trim() || !btnForm.url.trim()) return;
     const currentBtns = siteConfig.contact.customButtons || [];
@@ -318,13 +317,13 @@ export const SecretAdminPortal = () => {
         customButtons: [...currentBtns, { ...btnForm, id: `btn-${Date.now()}` }]
       }
     };
-    saveSiteConfig(newCfg);
+    await saveSiteConfig(newCfg);
     setSiteConfig(newCfg);
     setBtnForm({ label: '', url: '', color: '#47b8ec' });
     showNotification('Botão de contato adicionado!');
   };
 
-  const handleDeleteCustomBtn = (btnId) => {
+  const handleDeleteCustomBtn = async (btnId) => {
     const currentBtns = siteConfig.contact.customButtons || [];
     const newCfg = {
       ...siteConfig,
@@ -333,28 +332,23 @@ export const SecretAdminPortal = () => {
         customButtons: currentBtns.filter(b => b.id !== btnId)
       }
     };
-    saveSiteConfig(newCfg);
+    await saveSiteConfig(newCfg);
     setSiteConfig(newCfg);
   };
 
   // ─── ALTERAR SENHA ──────────────────────────────────────────────────────────
-  const handleChangePassword = (e) => {
+  const handleChangePassword = async (e) => {
     e.preventDefault();
     if (newPassInput.trim().length < 4) {
       alert('A senha deve ter pelo menos 4 caracteres.');
       return;
     }
-    setAdminPassword(newPassInput.trim());
-    setNewPassInput('');
-    showNotification('Senha mestra alterada com sucesso!');
-  };
-
-  const handleResetDefaults = () => {
-    if (window.confirm('Tem certeza de que deseja restaurar tudo aos valores originais de fábrica?')) {
-      resetAllToDefaults();
-      setProjects(loadProjects());
-      setSiteConfig(loadSiteConfig());
-      showNotification('Site restaurado aos padrões originais.');
+    const result = await setAdminPassword(newPassInput.trim());
+    if (result?.ok) {
+      setNewPassInput('');
+      showNotification('Senha mestra alterada com sucesso!');
+    } else {
+      alert(result?.error || 'Erro ao alterar senha.');
     }
   };
 

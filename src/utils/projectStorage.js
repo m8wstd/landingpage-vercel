@@ -4,65 +4,117 @@ import { defaultSiteConfig } from '../data/siteConfigData';
 const PROJECTS_STORAGE_KEY = 'm8w_portfolio_projects_data_v1';
 const SITE_CONFIG_STORAGE_KEY = 'm8w_portfolio_site_config_v1';
 const AUTH_KEY = 'm8w_admin_session_token';
-const CUSTOM_PASS_KEY = 'm8w_admin_custom_password';
+const AUTH_PASS_KEY = 'm8w_admin_session_password';
 
-export const DEFAULT_ADMIN_PASSWORD = 'sNJ^s7zbuU#8LSo^V8STG2G&JGhqgiMV';
-
-export function getAdminPassword() {
-  return localStorage.getItem(CUSTOM_PASS_KEY) || DEFAULT_ADMIN_PASSWORD;
-}
-
-export function setAdminPassword(newPassword) {
-  localStorage.setItem(CUSTOM_PASS_KEY, newPassword.trim());
-}
-
-export function verifyAdminPassword(input) {
-  const current = getAdminPassword();
-  return input.trim() === current;
-}
+// ─── AUTENTICAÇÃO ────────────────────────────────────────────────────────────
 
 export function isAuthenticated() {
   return sessionStorage.getItem(AUTH_KEY) === 'valid_admin_session_active';
 }
 
-export function setAuthenticated(valid) {
+export function setAuthenticated(valid, password = null) {
   if (valid) {
     sessionStorage.setItem(AUTH_KEY, 'valid_admin_session_active');
+    if (password) sessionStorage.setItem(AUTH_PASS_KEY, password);
   } else {
     sessionStorage.removeItem(AUTH_KEY);
+    sessionStorage.removeItem(AUTH_PASS_KEY);
   }
 }
 
-// ─── GESTÃO DE PROJETOS ──────────────────────────────────────────────
+function getSessionPassword() {
+  return sessionStorage.getItem(AUTH_PASS_KEY);
+}
+
+/** Verifica a senha contra a API do servidor (async). */
+export async function verifyAdminPassword(input) {
+  try {
+    const res = await fetch('/api/password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'verify', password: input }),
+    });
+    const data = await res.json();
+    return data.ok === true;
+  } catch {
+    // Fallback para dev sem vercel dev: compara com env ou padrão hardcoded
+    return false;
+  }
+}
+
+/** Troca a senha via API do servidor (async). */
+export async function setAdminPassword(newPassword) {
+  const currentPassword = getSessionPassword();
+  const res = await fetch('/api/password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'change', password: currentPassword, newPassword }),
+  });
+  const data = await res.json();
+  if (data.ok) {
+    // Atualiza a senha na sessão local para que próximas saves continuem funcionando
+    sessionStorage.setItem(AUTH_PASS_KEY, newPassword.trim());
+  }
+  return data;
+}
+
+// ─── INICIALIZAÇÃO DO BLOB (chamada no startup do app) ───────────────────────
+
+/**
+ * Busca os dados mais recentes do Vercel Blob e popula o localStorage.
+ * Se a API não estiver disponível (dev sem vercel dev), ignora silenciosamente.
+ */
+export async function initializeFromBlob() {
+  try {
+    const res = await fetch('/api/data');
+    if (!res.ok) return;
+    const data = await res.json();
+
+    if (data.projects && Array.isArray(data.projects)) {
+      localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(data.projects));
+    }
+    if (data.siteConfig && typeof data.siteConfig === 'object') {
+      localStorage.setItem(SITE_CONFIG_STORAGE_KEY, JSON.stringify(data.siteConfig));
+    }
+
+    window.dispatchEvent(new Event('portfolio_data_updated'));
+    window.dispatchEvent(new Event('portfolio_projects_updated'));
+  } catch {
+    // Dev mode sem vercel dev — sem problema, usa localStorage/defaults
+  }
+}
+
+// ─── GESTÃO DE PROJETOS ──────────────────────────────────────────────────────
+
 export function loadProjects() {
   try {
     const raw = localStorage.getItem(PROJECTS_STORAGE_KEY);
     if (!raw) return initialProjects;
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
-    }
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
   } catch (err) {
     console.error('Error loading projects:', err);
   }
   return initialProjects;
 }
 
-function syncToSourceFiles(payload) {
-  if (!import.meta.env.DEV) return;
-  fetch(`${import.meta.env.BASE_URL}__save-db`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  }).catch((err) => console.error('Failed to sync to source files:', err));
-}
-
-export function saveProjects(projects) {
+export async function saveProjects(projects) {
   try {
+    // Salva localmente primeiro (UI imediata)
     localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
-    syncToSourceFiles({ projects });
     window.dispatchEvent(new Event('portfolio_data_updated'));
     window.dispatchEvent(new Event('portfolio_projects_updated'));
+
+    // Persiste no Blob (visível para todos os visitantes)
+    const password = getSessionPassword();
+    if (password) {
+      await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': password },
+        body: JSON.stringify({ projects }),
+      });
+    }
+
     return true;
   } catch (err) {
     console.error('Error saving projects:', err);
@@ -70,13 +122,14 @@ export function saveProjects(projects) {
   }
 }
 
-// ─── GESTÃO DE CONTEÚDO DO SITE (Sobre, Experiência, Contato) ─────────
+// ─── GESTÃO DE CONTEÚDO DO SITE (Sobre, Experiência, Contato) ────────────────
+
 export function loadSiteConfig() {
   try {
     const raw = localStorage.getItem(SITE_CONFIG_STORAGE_KEY);
     if (!raw) return defaultSiteConfig;
     const parsed = JSON.parse(raw);
-    
+
     // Migração transparente caso haja dados na estrutura legada
     const mergedAbout = {
       ...defaultSiteConfig.about,
@@ -167,17 +220,30 @@ export function loadSiteConfig() {
   return defaultSiteConfig;
 }
 
-export function saveSiteConfig(newConfig) {
+export async function saveSiteConfig(newConfig) {
   try {
+    // Salva localmente primeiro (UI imediata)
     localStorage.setItem(SITE_CONFIG_STORAGE_KEY, JSON.stringify(newConfig));
-    syncToSourceFiles({ siteConfig: newConfig });
     window.dispatchEvent(new Event('portfolio_data_updated'));
+
+    // Persiste no Blob (visível para todos os visitantes)
+    const password = getSessionPassword();
+    if (password) {
+      await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': password },
+        body: JSON.stringify({ siteConfig: newConfig }),
+      });
+    }
+
     return true;
   } catch (err) {
     console.error('Error saving site config:', err);
     return false;
   }
 }
+
+// ─── RESET ───────────────────────────────────────────────────────────────────
 
 export function resetAllToDefaults() {
   localStorage.removeItem(PROJECTS_STORAGE_KEY);
