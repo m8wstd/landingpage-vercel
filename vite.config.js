@@ -50,5 +50,4 @@ function saveDbPlugin() {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), saveDbPlugin()],
-  base: '/landingpage/',
 })
