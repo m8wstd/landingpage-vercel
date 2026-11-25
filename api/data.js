@@ -72,6 +72,7 @@ export default async function handler(req, res) {
       await put(DATA_PATH, JSON.stringify(newData), {
         access: 'private',
         addRandomSuffix: false,
+        allowOverwrite: true,
         contentType: 'application/json',
       });
 

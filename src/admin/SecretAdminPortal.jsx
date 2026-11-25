@@ -94,7 +94,11 @@ export const SecretAdminPortal = () => {
   // ─── SALVAR SOBRE ───────────────────────────────────────────────────────────
   const handleSaveAbout = async (e) => {
     e.preventDefault();
-    await saveSiteConfig(siteConfig);
+    const ok = await saveSiteConfig(siteConfig);
+    if (!ok) {
+      alert('Erro ao salvar no servidor (Blob). Verifique o console (F12).');
+      return;
+    }
     showNotification(`Seção "Sobre" salva com sucesso (${editLang.toUpperCase()})!`);
   };
 
@@ -143,7 +147,11 @@ export const SecretAdminPortal = () => {
       updated = [newObj, ...projects];
     }
 
-    await saveProjects(updated);
+    const ok = await saveProjects(updated);
+    if (!ok) {
+      alert('Erro ao salvar projeto no servidor (Blob). Verifique o console (F12).');
+      return;
+    }
     setProjects(updated);
     setEditingProjectId(null);
     setProjectForm({
@@ -187,7 +195,11 @@ export const SecretAdminPortal = () => {
   const handleDeleteProject = async (id) => {
     if (window.confirm('Tem certeza de que deseja excluir este projeto?')) {
       const updated = projects.filter(p => p.id !== id);
-      await saveProjects(updated);
+      const ok = await saveProjects(updated);
+    if (!ok) {
+      alert('Erro ao salvar projeto no servidor (Blob). Verifique o console (F12).');
+      return;
+    }
       setProjects(updated);
       showNotification('Projeto removido.');
     }
@@ -201,7 +213,11 @@ export const SecretAdminPortal = () => {
     const [movedItem] = updated.splice(index, 1);
     updated.splice(targetIndex, 0, movedItem);
 
-    await saveProjects(updated);
+    const ok = await saveProjects(updated);
+    if (!ok) {
+      alert('Erro ao salvar projeto no servidor (Blob). Verifique o console (F12).');
+      return;
+    }
     setProjects(updated);
     showNotification('Ordem dos projetos atualizada!');
   };
@@ -241,7 +257,11 @@ export const SecretAdminPortal = () => {
     }
 
     const newCfg = { ...siteConfig, experience: updatedExp };
-    await saveSiteConfig(newCfg);
+    const ok = await saveSiteConfig(newCfg);
+    if (!ok) {
+      alert('Erro ao salvar experiência no servidor (Blob). Verifique o console (F12).');
+      return;
+    }
     setSiteConfig(newCfg);
     setEditingExpId(null);
     setExpForm({
@@ -302,7 +322,11 @@ export const SecretAdminPortal = () => {
   // ─── SALVAR CONTATO ─────────────────────────────────────────────────────────
   const handleSaveContact = async (e) => {
     e.preventDefault();
-    await saveSiteConfig(siteConfig);
+    const ok = await saveSiteConfig(siteConfig);
+    if (!ok) {
+      alert('Erro ao salvar contato no servidor (Blob). Verifique o console (F12).');
+      return;
+    }
     showNotification('Configurações de Contato salvas com sucesso!');
   };
 

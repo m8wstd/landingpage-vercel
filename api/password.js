@@ -61,6 +61,7 @@ export default async function handler(req, res) {
     await put(ADMIN_PATH, JSON.stringify({ password: newPassword.trim() }), {
       access: 'private',
       addRandomSuffix: false,
+      allowOverwrite: true,
       contentType: 'application/json',
     });
 
